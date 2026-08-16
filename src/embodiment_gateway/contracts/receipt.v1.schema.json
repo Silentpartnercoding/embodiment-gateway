@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Silentpartnercoding/embodiment-gateway/contracts/receipt.v1.schema.json",
+  "title": "Embodiment Gateway portable receipt v1",
+  "description": "Structural schema. Digest and cross-field bindings are verified by verify_embodiment_receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "run_id", "status", "started_at", "completed_at",
+    "judgment_digest", "plan", "plan_digest", "sandbox_digest",
+    "adapter_manifest", "adapter_manifest_digest", "decision", "before",
+    "steps", "motor_commands", "final_pose_verified", "error",
+    "mandatory_action_taken", "scientific_claim", "evidence_root_minted",
+    "authority_scope", "receipt_digest"
+  ],
+  "properties": {
+    "schema": {"const": "embodiment-gateway.receipt.v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "status": {"enum": ["completed", "failed", "not_executed"]},
+    "started_at": {"type": ["string", "null"]},
+    "completed_at": {"type": "string", "minLength": 1},
+    "judgment_digest": {"$ref": "#/$defs/digest"},
+    "plan": {"type": "object"},
+    "plan_digest": {"$ref": "#/$defs/digest"},
+    "sandbox_digest": {"$ref": "#/$defs/digest"},
+    "adapter_manifest": {"type": "object"},
+    "adapter_manifest_digest": {"$ref": "#/$defs/digest"},
+    "decision": {"type": "object"},
+    "before": {"type": ["object", "null"]},
+    "steps": {"type": "array"},
+    "motor_commands": {"type": "integer", "minimum": 0},
+    "final_pose_verified": {"type": "boolean"},
+    "error": {"type": ["string", "null"]},
+    "mandatory_action_taken": {"type": "boolean"},
+    "scientific_claim": {"const": false},
+    "evidence_root_minted": {"const": false},
+    "authority_scope": {"const": "embodiment_health_only"},
+    "receipt_digest": {"$ref": "#/$defs/digest"}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

@@ -11,6 +11,9 @@ the Embodiment Gateway repository. Run these commands from the repository root:
 .venv/bin/pip install -e .
 .venv/bin/pip install -e adapters/so101
 .venv/bin/python -m unittest discover -s adapters/so101/tests -p 'test_*.py' -v
+.venv/bin/embodiment-so101 demo \
+  --receipt-log /tmp/embodiment-receipts.jsonl \
+  --receipt-output /tmp/embodiment-inbox/heartbeat.receipt.json
 ```
 
 Hardware support is installed only with `embodiment-so101[hardware]`.

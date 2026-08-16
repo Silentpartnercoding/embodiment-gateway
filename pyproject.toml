@@ -12,5 +12,11 @@ license = "Apache-2.0"
 license-files = ["LICENSE", "NOTICE"]
 dependencies = []
 
+[project.scripts]
+embodiment-gateway = "embodiment_gateway.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+embodiment_gateway = ["contracts/*.json"]

@@ -6,9 +6,15 @@ import json
 import tempfile
 from pathlib import Path
 from dataclasses import dataclass
+from contextlib import redirect_stdout
+from io import StringIO
 from unittest.mock import patch
 
-from embodiment_gateway import EmbodimentContractError, RootJudgment
+from embodiment_gateway import (
+    EmbodimentContractError,
+    RootJudgment,
+    verify_embodiment_receipt,
+)
 from embodiment_so101 import (
     SO101_ACTION_KEYS,
     SO101LeRobotAdapter,
@@ -19,6 +25,23 @@ from embodiment_so101.cli import main
 
 
 class SO101AdapterTest(unittest.TestCase):
+    def test_demo_atomically_exports_a_portable_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            output = root / "outbox" / "heartbeat.receipt.json"
+            with redirect_stdout(StringIO()):
+                self.assertEqual(
+                    main([
+                        "demo",
+                        "--receipt-log", str(root / "receipts.jsonl"),
+                        "--receipt-output", str(output),
+                    ]),
+                    0,
+                )
+            receipt = json.loads(output.read_text(encoding="utf-8"))
+            self.assertTrue(verify_embodiment_receipt(receipt)["valid"])
+            self.assertFalse(output.with_suffix(output.suffix + ".tmp").exists())
+
     def test_cli_wraps_root_verdict_without_importing_invention_engine(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

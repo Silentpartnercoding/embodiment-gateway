@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import tempfile
 import unittest
 from dataclasses import replace
@@ -16,6 +17,7 @@ from embodiment_gateway import (
     RootJudgmentEmbodimentGateway,
     SandboxAuthorization,
     canonical_digest,
+    verify_embodiment_receipt,
 )
 
 
@@ -93,6 +95,7 @@ class GatewayTest(unittest.TestCase):
             self.assertFalse(receipt["evidence_root_minted"])
             self.assertGreater(len(adapter.commands), len(plan.pose_sequence))
             self.assertTrue(receipt["receipt_digest"].startswith("sha256:"))
+            self.assertTrue(verify_embodiment_receipt(receipt)["valid"])
             self.assertEqual(journal.verify()["entries"], 2)
 
             replay = gateway.run(judgment, plan, sandbox, adapter, journal=journal)
@@ -114,6 +117,40 @@ class GatewayTest(unittest.TestCase):
             self.assertFalse(adapter.connected)
             self.assertEqual(adapter.commands, [])
             self.assertEqual(journal.entries(), [])
+            self.assertTrue(receipt["receipt_digest"].startswith("sha256:"))
+            self.assertTrue(verify_embodiment_receipt(receipt)["valid"])
+
+    def test_portable_receipt_verifier_detects_nested_tampering(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            judgment, sandbox, plan, adapter = fixture()
+            receipt = RootJudgmentEmbodimentGateway().run(
+                judgment,
+                plan,
+                sandbox,
+                adapter,
+                journal=EmbodimentReceiptLog(Path(directory) / "receipts.jsonl"),
+            )
+            tampered = copy.deepcopy(receipt)
+            tampered["plan"]["purpose"] = "swapped after execution"
+            with self.assertRaisesRegex(ValueError, "receipt_digest"):
+                verify_embodiment_receipt(tampered)
+
+    def test_receipt_cannot_claim_scientific_authority_even_if_rehashed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            judgment, sandbox, plan, adapter = fixture()
+            receipt = RootJudgmentEmbodimentGateway().run(
+                judgment,
+                plan,
+                sandbox,
+                adapter,
+                journal=EmbodimentReceiptLog(Path(directory) / "receipts.jsonl"),
+            )
+            forged = {**receipt, "scientific_claim": True}
+            forged["receipt_digest"] = canonical_digest(
+                {key: value for key, value in forged.items() if key != "receipt_digest"}
+            )
+            with self.assertRaisesRegex(ValueError, "cannot assert science"):
+                verify_embodiment_receipt(forged)
 
     def test_plan_is_bound_to_exact_external_judgment(self) -> None:
         judgment, sandbox, plan, adapter = fixture()

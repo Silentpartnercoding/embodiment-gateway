@@ -428,6 +428,20 @@ class EmbodimentAdapterManifest:
     hardware: bool
     transport: str
 
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("adapter_id", self.adapter_id),
+            ("adapter_version", self.adapter_version),
+            ("robot_family", self.robot_family),
+            ("robot_id", self.robot_id),
+            ("calibration_id", self.calibration_id),
+            ("transport", self.transport),
+        ):
+            if not value.strip():
+                raise EmbodimentContractError(f"adapter_manifest.{label} is required")
+        if not isinstance(self.hardware, bool):
+            raise EmbodimentContractError("adapter_manifest.hardware must be boolean")
+
     def payload(self) -> dict[str, Any]:
         return {
             "adapter_id": self.adapter_id,
@@ -442,6 +456,25 @@ class EmbodimentAdapterManifest:
     @property
     def digest(self) -> str:
         return canonical_digest(self.payload())
+
+    @classmethod
+    def parse(cls, value: Mapping[str, Any]) -> "EmbodimentAdapterManifest":
+        expected = {
+            "adapter_id", "adapter_version", "robot_family", "robot_id",
+            "calibration_id", "hardware", "transport",
+        }
+        _require_exact_keys(value, expected, "adapter_manifest")
+        if not isinstance(value["hardware"], bool):
+            raise EmbodimentContractError("adapter_manifest.hardware must be boolean")
+        return cls(
+            adapter_id=str(value["adapter_id"]),
+            adapter_version=str(value["adapter_version"]),
+            robot_family=str(value["robot_family"]),
+            robot_id=str(value["robot_id"]),
+            calibration_id=str(value["calibration_id"]),
+            hardware=value["hardware"],
+            transport=str(value["transport"]),
+        )
 
 
 class EmbodimentAdapter(Protocol):
@@ -644,15 +677,30 @@ class RootJudgmentEmbodimentGateway:
     ) -> dict[str, Any]:
         decision = self.judge(judgment, plan, sandbox, adapter)
         if decision["disposition"] != "pass":
-            return {
+            body = {
                 "schema": EMBODIMENT_RECEIPT_SCHEMA,
                 "run_id": plan.run_id,
                 "status": "not_executed",
+                "started_at": None,
+                "completed_at": _now(),
+                "judgment_digest": judgment.digest,
+                "plan": plan.payload(),
+                "plan_digest": plan.digest,
+                "sandbox_digest": sandbox.digest,
+                "adapter_manifest": adapter.manifest.payload(),
+                "adapter_manifest_digest": adapter.manifest.digest,
                 "decision": decision,
+                "before": None,
+                "steps": [],
+                "motor_commands": 0,
+                "final_pose_verified": False,
+                "error": None,
                 "mandatory_action_taken": False,
                 "scientific_claim": False,
                 "evidence_root_minted": False,
+                "authority_scope": "embodiment_health_only",
             }
+            return {**body, "receipt_digest": canonical_digest(body)}
         existing = journal.state(plan.run_id)
         if existing is not None and existing.get("event") == "completion":
             return dict(existing["receipt"])
@@ -822,6 +870,137 @@ def _within_tolerance(
     return set(observation) == set(target) and all(
         abs(observation[key] - target[key]) <= tolerance for key in target
     )
+
+
+def verify_embodiment_receipt(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Verify one portable receipt without trusting its transport or producer.
+
+    A valid digest proves internal integrity and binding. It is not a signature,
+    device attestation, scientific claim, or evidence-admission decision.
+    """
+    expected = {
+        "schema", "run_id", "status", "started_at", "completed_at",
+        "judgment_digest", "plan", "plan_digest", "sandbox_digest",
+        "adapter_manifest", "adapter_manifest_digest", "decision", "before",
+        "steps", "motor_commands", "final_pose_verified", "error",
+        "mandatory_action_taken", "scientific_claim", "evidence_root_minted",
+        "authority_scope", "receipt_digest",
+    }
+    _require_exact_keys(value, expected, "receipt")
+    if value["schema"] != EMBODIMENT_RECEIPT_SCHEMA:
+        raise EmbodimentContractError("unsupported embodiment receipt schema")
+    unsigned = {key: value[key] for key in value if key != "receipt_digest"}
+    if value["receipt_digest"] != canonical_digest(unsigned):
+        raise EmbodimentContractError("receipt_digest does not bind the receipt payload")
+    if value["status"] not in {"completed", "failed", "not_executed"}:
+        raise EmbodimentContractError("unsupported embodiment receipt status")
+    if not isinstance(value["run_id"], str) or not value["run_id"].strip():
+        raise EmbodimentContractError("receipt.run_id is required")
+    if not is_digest(value["judgment_digest"]):
+        raise EmbodimentContractError("receipt.judgment_digest must be sha256:<hex>")
+    if not isinstance(value["plan"], Mapping):
+        raise EmbodimentContractError("receipt.plan must be an object")
+    plan = EmbodimentPlan.parse(value["plan"])
+    if value["plan_digest"] != plan.digest:
+        raise EmbodimentContractError("receipt.plan_digest does not bind plan")
+    if value["run_id"] != plan.run_id:
+        raise EmbodimentContractError("receipt.run_id does not match plan")
+    if value["judgment_digest"] != plan.judgment_digest:
+        raise EmbodimentContractError("receipt judgment does not match plan")
+    if value["sandbox_digest"] != plan.sandbox_digest:
+        raise EmbodimentContractError("receipt sandbox does not match plan")
+    if not isinstance(value["adapter_manifest"], Mapping):
+        raise EmbodimentContractError("receipt.adapter_manifest must be an object")
+    manifest = EmbodimentAdapterManifest.parse(value["adapter_manifest"])
+    if value["adapter_manifest_digest"] != manifest.digest:
+        raise EmbodimentContractError("adapter_manifest_digest does not bind manifest")
+    _verify_decision(
+        value["decision"],
+        run_id=plan.run_id,
+        judgment_digest=plan.judgment_digest,
+        plan_digest=plan.digest,
+        sandbox_digest=plan.sandbox_digest,
+        adapter_manifest_digest=manifest.digest,
+    )
+    if not isinstance(value["steps"], list):
+        raise EmbodimentContractError("receipt.steps must be an array")
+    if isinstance(value["motor_commands"], bool) or not isinstance(value["motor_commands"], int):
+        raise EmbodimentContractError("receipt.motor_commands must be an integer")
+    if value["motor_commands"] < 0:
+        raise EmbodimentContractError("receipt.motor_commands cannot be negative")
+    for key in (
+        "final_pose_verified", "mandatory_action_taken", "scientific_claim",
+        "evidence_root_minted",
+    ):
+        if not isinstance(value[key], bool):
+            raise EmbodimentContractError(f"receipt.{key} must be boolean")
+    if value["scientific_claim"] or value["evidence_root_minted"]:
+        raise EmbodimentContractError("embodiment receipts cannot assert science or mint roots")
+    if value["authority_scope"] != "embodiment_health_only":
+        raise EmbodimentContractError("unsupported embodiment authority scope")
+    if value["status"] == "not_executed":
+        if value["decision"]["disposition"] == "pass":
+            raise EmbodimentContractError("a passing decision cannot be marked not_executed")
+        if value["steps"] or value["motor_commands"] or value["mandatory_action_taken"]:
+            raise EmbodimentContractError("not_executed receipt contains execution activity")
+    elif value["decision"]["disposition"] != "pass":
+        raise EmbodimentContractError("an executed receipt requires a passing decision")
+    if value["status"] == "completed" and not value["final_pose_verified"]:
+        raise EmbodimentContractError("completed receipt did not verify its final pose")
+    return {
+        "valid": True,
+        "schema": value["schema"],
+        "run_id": plan.run_id,
+        "hypothesis_id": plan.hypothesis_id,
+        "status": value["status"],
+        "hardware": manifest.hardware,
+        "receipt_digest": value["receipt_digest"],
+        "authority_scope": value["authority_scope"],
+    }
+
+
+def _verify_decision(
+    value: Any,
+    *,
+    run_id: str,
+    judgment_digest: str,
+    plan_digest: str,
+    sandbox_digest: str,
+    adapter_manifest_digest: str,
+) -> None:
+    if not isinstance(value, Mapping):
+        raise EmbodimentContractError("receipt.decision must be an object")
+    expected = {
+        "schema", "gateway", "policy", "run_id", "judgment_digest", "plan_digest",
+        "sandbox_digest", "adapter_manifest_digest", "disposition", "reasons",
+        "mandatory_action_on_pass", "physical_execution_authorized", "decision_id",
+        "decision_digest",
+    }
+    _require_exact_keys(value, expected, "decision")
+    if value["schema"] != EMBODIMENT_DECISION_SCHEMA:
+        raise EmbodimentContractError("unsupported embodiment decision schema")
+    unsigned = {
+        key: value[key]
+        for key in value
+        if key not in {"decision_id", "decision_digest"}
+    }
+    digest = canonical_digest(unsigned)
+    if value["decision_digest"] != digest:
+        raise EmbodimentContractError("decision_digest does not bind decision")
+    if value["decision_id"] != "embodiment-decision:" + digest.removeprefix("sha256:"):
+        raise EmbodimentContractError("decision_id does not match decision digest")
+    bindings = {
+        "run_id": run_id,
+        "judgment_digest": judgment_digest,
+        "plan_digest": plan_digest,
+        "sandbox_digest": sandbox_digest,
+        "adapter_manifest_digest": adapter_manifest_digest,
+    }
+    for key, expected_value in bindings.items():
+        if value[key] != expected_value:
+            raise EmbodimentContractError(f"decision {key} does not match receipt")
+    if value["disposition"] not in {"pass", "defer", "reject"}:
+        raise EmbodimentContractError("unsupported embodiment decision disposition")
 
 
 def _now() -> str:

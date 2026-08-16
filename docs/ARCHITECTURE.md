@@ -34,6 +34,10 @@ or real-world task success.
 
 ## Relationship to Invention Graph
 
-Invention Graph is a separate research engine. It can export a root-verdict JSON
-and later ingest a reviewed result receipt. The handoff is data over a documented
-contract—not a Python import, shared database, or combined release.
+Invention Graph is a separate research engine. It exports and records a frozen
+root-judgment JSON, then independently verifies and reviews the returned result
+receipt. The canonical cross-project JSON schemas live in the Gateway core
+package because this repository owns the execution boundary. The handoff is
+files/data over a versioned contract—not a Python import, shared database, or
+combined release. A reviewed embodiment receipt returns as embodiment health,
+not automatically as a scientific claim or evidence root.

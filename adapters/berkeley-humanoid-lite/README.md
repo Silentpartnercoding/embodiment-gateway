@@ -27,7 +27,8 @@ to their documentation.
   -s adapters/berkeley-humanoid-lite/tests -p 'test_*.py' -v
 
 .venv/bin/python -m embodiment_berkeley_humanoid_lite demo \
-  --receipt-log /tmp/humanoid-lite-simulation-receipts.jsonl
+  --receipt-log /tmp/humanoid-lite-simulation-receipts.jsonl \
+  --receipt-output /tmp/embodiment-inbox/humanoid.receipt.json
 ```
 
 The completion receipt proves only that a digest-bound simulation accepted and

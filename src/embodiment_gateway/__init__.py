@@ -23,6 +23,7 @@ from .gateway import (
     SandboxAuthorization,
     canonical_digest,
     is_digest,
+    verify_embodiment_receipt,
 )
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "SandboxAuthorization",
     "canonical_digest",
     "is_digest",
+    "verify_embodiment_receipt",
 ]

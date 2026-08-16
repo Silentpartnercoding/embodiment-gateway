@@ -29,6 +29,25 @@ This repository is independent of
 [`invention-graph`](https://github.com/Silentpartnercoding/invention-graph).
 The projects exchange JSON and digests; neither imports the other.
 
+The canonical cross-project schemas ship inside the core wheel under
+`embodiment_gateway/contracts/`. The Gateway owns those schemas because it is
+the security boundary consuming judgments and producing receipts. Invention
+Graph independently verifies the same digest bindings before recording a
+returned receipt.
+
+```bash
+embodiment-gateway contracts --output-dir /tmp/embodiment-contracts
+embodiment-gateway wrap-judgment verdict.json \
+  --subject-id HYPOTHESIS_ID --issuer root-judge:local \
+  --output judgment.json
+embodiment-gateway verify-receipt receipt.json
+```
+
+A valid receipt proves internal integrity and exact object binding, not signer
+identity or scientific truth. Every v1 receipt—including a rejected or deferred
+run—is digest-sealed and retains `scientific_claim=false`,
+`evidence_root_minted=false`, and `authority_scope=embodiment_health_only`.
+
 ## Install and test
 
 From this repository's root:

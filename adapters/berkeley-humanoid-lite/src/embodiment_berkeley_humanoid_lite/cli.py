@@ -109,9 +109,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=Path,
         default=Path("humanoid-lite-simulation-receipts.jsonl"),
     )
+    demo.add_argument("--receipt-output", type=Path)
     args = parser.parse_args(argv)
     if args.command == "demo":
         result = _demo(args.receipt_log)
+        if args.receipt_output:
+            args.receipt_output.parent.mkdir(parents=True, exist_ok=True)
+            temporary = args.receipt_output.with_suffix(args.receipt_output.suffix + ".tmp")
+            temporary.write_text(
+                json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            temporary.replace(args.receipt_output)
         print(json.dumps(result, indent=2, sort_keys=True))
         return 0 if result["status"] == "completed" else 1
     return 2

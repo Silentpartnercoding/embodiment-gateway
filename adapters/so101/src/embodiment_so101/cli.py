@@ -27,6 +27,7 @@ def _parser() -> argparse.ArgumentParser:
     demo = commands.add_parser("demo", help="run a hardware-free contract heartbeat")
     demo.add_argument("--run-id", default="embodiment-demo-1")
     demo.add_argument("--receipt-log", type=Path, default=Path("data/embodiment-receipts.jsonl"))
+    demo.add_argument("--receipt-output", type=Path)
 
     wrap = commands.add_parser(
         "wrap-judgment",
@@ -47,6 +48,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--calibration-id")
     run.add_argument("--execute-physical", action="store_true")
     run.add_argument("--receipt-log", type=Path, default=Path("data/embodiment-receipts.jsonl"))
+    run.add_argument("--receipt-output", type=Path)
 
     verify = commands.add_parser("verify", help="verify an intent/completion hash chain")
     verify.add_argument("receipt_log", type=Path)
@@ -182,14 +184,21 @@ def main(argv: list[str] | None = None) -> int:
                     calibration_id=args.calibration_id or sandbox.calibration_id,
                 )
         journal = EmbodimentReceiptLog(args.receipt_log)
-        result = RootJudgmentEmbodimentGateway().run(
+        receipt = RootJudgmentEmbodimentGateway().run(
             judgment,
             plan,
             sandbox,
             adapter,
             journal=journal,
         )
-        result["journal"] = journal.verify()
+        if args.receipt_output:
+            args.receipt_output.parent.mkdir(parents=True, exist_ok=True)
+            temporary = args.receipt_output.with_suffix(args.receipt_output.suffix + ".tmp")
+            temporary.write_text(
+                json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            temporary.replace(args.receipt_output)
+        result = {**receipt, "journal": journal.verify()}
     print(json.dumps(result, indent=2, sort_keys=True))
     return 0
 

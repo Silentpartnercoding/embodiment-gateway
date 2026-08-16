@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import types
@@ -219,11 +220,20 @@ class HumanoidLiteSimulationAdapterTest(unittest.TestCase):
     def test_cli_demo_produces_a_hash_bound_simulation_receipt(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             receipt_log = Path(directory) / "receipts.jsonl"
+            receipt_output = Path(directory) / "outbox" / "receipt.json"
             with redirect_stdout(StringIO()):
-                self.assertEqual(main(["demo", "--receipt-log", str(receipt_log)]), 0)
+                self.assertEqual(main([
+                    "demo",
+                    "--receipt-log", str(receipt_log),
+                    "--receipt-output", str(receipt_output),
+                ]), 0)
             rows = EmbodimentReceiptLog(receipt_log).entries()
             self.assertEqual(rows[-1]["receipt"]["status"], "completed")
             self.assertFalse(rows[-1]["receipt"]["adapter_manifest"]["hardware"])
+            self.assertEqual(
+                json.loads(receipt_output.read_text(encoding="utf-8"))["receipt_digest"],
+                rows[-1]["receipt"]["receipt_digest"],
+            )
 
 
 if __name__ == "__main__":
