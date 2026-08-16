@@ -9,6 +9,7 @@ description = "Hardware-neutral execution gateway for digest-bound judgments"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 dependencies = []
 
 [tool.setuptools.packages.find]

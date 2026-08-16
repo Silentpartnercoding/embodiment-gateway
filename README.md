@@ -8,5 +8,12 @@ It does not import Invention Graph, Minority Prophet, LeRobot, or any hardware
 SDK. A passing judgment cannot expand the human-authorized sandbox, and a
 dangling physical intent is never replayed automatically.
 
-The package is source-available here for integration testing. It is not part of
-the `invention-graph` wheel.
+This is its own project and distribution. It is not part of the
+[`invention-graph`](https://github.com/Silentpartnercoding/invention-graph)
+repository or wheel.
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -e .
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -v
+```
