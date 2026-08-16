@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Silentpartnercoding/embodiment-gateway/contracts/plan.v1.schema.json",
+  "title": "Embodiment Gateway plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema", "run_id", "hypothesis_id", "experiment_id", "judgment_digest",
+    "sandbox_digest", "pose_sequence", "expected_final_pose", "purpose"
+  ],
+  "properties": {
+    "schema": {"const": "embodiment-gateway.plan.v1"},
+    "run_id": {"type": "string", "minLength": 1},
+    "hypothesis_id": {"type": "string", "minLength": 1},
+    "experiment_id": {"type": "string", "minLength": 1},
+    "judgment_digest": {"$ref": "#/$defs/digest"},
+    "sandbox_digest": {"$ref": "#/$defs/digest"},
+    "pose_sequence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "expected_final_pose": {"type": "string", "minLength": 1},
+    "purpose": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+  }
+}

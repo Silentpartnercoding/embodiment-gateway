@@ -97,6 +97,7 @@ def fixture():
     plan = EmbodimentPlan(
         run_id="run:humanoid-test",
         hypothesis_id=judgment.subject_id,
+        experiment_id="experiment:humanoid-test",
         judgment_digest=judgment.digest,
         sandbox_digest=sandbox.digest,
         pose_sequence=("home", "signal", "home"),

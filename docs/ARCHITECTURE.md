@@ -10,7 +10,8 @@ and asks one adapter to carry it out.
 1. **Root judgment** — the sealed note saying what was judged, which independent
    evidence roots supported it, and how hard the conclusion is to reverse.
 2. **Plan** — the requested sequence of already named poses. It contains the
-   exact judgment and sandbox digests, so neither can be swapped later.
+   exact hypothesis, experiment, judgment, and sandbox bindings, so neither an
+   input nor a sibling experiment can be swapped later.
 3. **Sandbox authorization** — the human-defined playpen: exact device,
    calibration, poses, legal transitions, motion budget, cleared workspace, and
    emergency-stop attestations.

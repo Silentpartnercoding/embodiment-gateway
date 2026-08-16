@@ -362,6 +362,7 @@ class SandboxAuthorization:
 class EmbodimentPlan:
     run_id: str
     hypothesis_id: str
+    experiment_id: str
     judgment_digest: str
     sandbox_digest: str
     pose_sequence: tuple[str, ...]
@@ -372,8 +373,15 @@ class EmbodimentPlan:
     def __post_init__(self) -> None:
         if self.schema != EMBODIMENT_PLAN_SCHEMA:
             raise EmbodimentContractError("unsupported plan schema")
-        if not self.run_id.strip() or not self.hypothesis_id.strip() or not self.purpose.strip():
-            raise EmbodimentContractError("run_id, hypothesis_id, and purpose are required")
+        if (
+            not self.run_id.strip()
+            or not self.hypothesis_id.strip()
+            or not self.experiment_id.strip()
+            or not self.purpose.strip()
+        ):
+            raise EmbodimentContractError(
+                "run_id, hypothesis_id, experiment_id, and purpose are required"
+            )
         if not is_digest(self.judgment_digest) or not is_digest(self.sandbox_digest):
             raise EmbodimentContractError("judgment and sandbox digests are required")
         if not self.pose_sequence:
@@ -386,6 +394,7 @@ class EmbodimentPlan:
             "schema": self.schema,
             "run_id": self.run_id,
             "hypothesis_id": self.hypothesis_id,
+            "experiment_id": self.experiment_id,
             "judgment_digest": self.judgment_digest,
             "sandbox_digest": self.sandbox_digest,
             "pose_sequence": list(self.pose_sequence),
@@ -400,8 +409,8 @@ class EmbodimentPlan:
     @classmethod
     def parse(cls, value: Mapping[str, Any]) -> "EmbodimentPlan":
         expected = {
-            "schema", "run_id", "hypothesis_id", "judgment_digest", "sandbox_digest",
-            "pose_sequence", "expected_final_pose", "purpose",
+            "schema", "run_id", "hypothesis_id", "experiment_id", "judgment_digest",
+            "sandbox_digest", "pose_sequence", "expected_final_pose", "purpose",
         }
         _require_exact_keys(value, expected, "plan")
         if not isinstance(value["pose_sequence"], list):
@@ -409,6 +418,7 @@ class EmbodimentPlan:
         return cls(
             run_id=str(value["run_id"]),
             hypothesis_id=str(value["hypothesis_id"]),
+            experiment_id=str(value["experiment_id"]),
             judgment_digest=str(value["judgment_digest"]),
             sandbox_digest=str(value["sandbox_digest"]),
             pose_sequence=tuple(str(item) for item in value["pose_sequence"]),
@@ -952,6 +962,7 @@ def verify_embodiment_receipt(value: Mapping[str, Any]) -> dict[str, Any]:
         "schema": value["schema"],
         "run_id": plan.run_id,
         "hypothesis_id": plan.hypothesis_id,
+        "experiment_id": plan.experiment_id,
         "status": value["status"],
         "hardware": manifest.hardware,
         "receipt_digest": value["receipt_digest"],

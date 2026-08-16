@@ -27,6 +27,7 @@ jobs:
         run: |
           embodiment-gateway contracts --output-dir /tmp/embodiment-contracts
           test -f /tmp/embodiment-contracts/root-judgment.v1.schema.json
+          test -f /tmp/embodiment-contracts/plan.v1.schema.json
           test -f /tmp/embodiment-contracts/receipt.v1.schema.json
       - name: Test SO-101 adapter
         run: python -m unittest discover -s adapters/so101/tests -p 'test_*.py' -v

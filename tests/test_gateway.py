@@ -59,6 +59,7 @@ def fixture(*, roots: int = 2, run_id: str = "run-1"):
     plan = EmbodimentPlan(
         run_id=run_id,
         hypothesis_id=judgment.subject_id,
+        experiment_id="experiment:demo",
         judgment_digest=judgment.digest,
         sandbox_digest=sandbox.digest,
         pose_sequence=("home", "signal", "home"),

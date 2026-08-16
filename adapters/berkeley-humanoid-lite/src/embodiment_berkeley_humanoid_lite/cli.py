@@ -85,6 +85,7 @@ def _demo(receipt_log: Path) -> dict:
     plan = EmbodimentPlan(
         run_id="humanoid-lite-simulation-demo",
         hypothesis_id=judgment.subject_id,
+        experiment_id="experiment:humanoid-lite-simulation-demo",
         judgment_digest=judgment.digest,
         sandbox_digest=sandbox.digest,
         pose_sequence=("home", "signal", "home"),

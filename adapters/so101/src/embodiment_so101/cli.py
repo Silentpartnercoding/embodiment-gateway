@@ -114,6 +114,7 @@ def _demo_fixture(run_id: str):
     plan = EmbodimentPlan(
         run_id=run_id,
         hypothesis_id=judgment.subject_id,
+        experiment_id="experiment:embodiment-heartbeat",
         judgment_digest=judgment.digest,
         sandbox_digest=sandbox.digest,
         pose_sequence=("home", "signal", "home"),
