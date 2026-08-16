@@ -1,0 +1,83 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install and test all components
+        run: |
+          python -m pip install -e .
+          python -m pip install -e adapters/so101
+          python -m pip install -e adapters/berkeley-humanoid-lite
+          python -m unittest discover -s tests -p 'test_*.py'
+          python -m unittest discover -s adapters/so101/tests -p 'test_*.py'
+          python -m unittest discover -s adapters/berkeley-humanoid-lite/tests -p 'test_*.py'
+      - name: Build all distributions
+        run: |
+          python -m pip install --upgrade build
+          python -m build --outdir dist/gateway .
+          python -m build --outdir dist/so101 adapters/so101
+          python -m build --outdir dist/humanoid adapters/berkeley-humanoid-lite
+      - name: Verify tag and legal payloads
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python - <<'PY'
+          import email
+          import os
+          import pathlib
+          import tomllib
+          import zipfile
+
+          root = pathlib.Path.cwd()
+          expected = os.environ["RELEASE_TAG"].removeprefix("v")
+          projects = (
+              (root / "pyproject.toml", root / "dist/gateway"),
+              (root / "adapters/so101/pyproject.toml", root / "dist/so101"),
+              (root / "adapters/berkeley-humanoid-lite/pyproject.toml", root / "dist/humanoid"),
+          )
+          for config_path, dist in projects:
+              project = tomllib.loads(config_path.read_text())["project"]
+              if project["version"] != expected:
+                  raise SystemExit(
+                      f"{project['name']} version {project['version']} != tag {expected}"
+                  )
+              wheel = next(dist.glob("*.whl"))
+              with zipfile.ZipFile(wheel) as archive:
+                  names = archive.namelist()
+                  metadata_name = next(
+                      name for name in names if name.endswith(".dist-info/METADATA")
+                  )
+                  metadata = email.message_from_bytes(archive.read(metadata_name))
+                  if metadata.get("License-Expression") != "Apache-2.0":
+                      raise SystemExit(f"{project['name']} is not Apache-2.0")
+                  for filename in ("LICENSE", "NOTICE"):
+                      if not any(name.endswith(f"/licenses/{filename}") for name in names):
+                          raise SystemExit(f"{project['name']} wheel is missing {filename}")
+          PY
+      - name: Collect artifacts and checksums
+        run: |
+          mkdir release-artifacts
+          cp dist/gateway/* dist/so101/* dist/humanoid/* release-artifacts/
+          cd release-artifacts
+          sha256sum * > SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}" release-artifacts/*
+          --verify-tag
+          --generate-notes
+          --title "Embodiment Gateway ${GITHUB_REF_NAME}"

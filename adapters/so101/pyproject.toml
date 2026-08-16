@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "embodiment-so101"
+version = "0.1.0"
+description = "LeRobot SO-101 plugin for Embodiment Gateway"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+dependencies = ["embodiment-gateway>=0.1,<1"]
+
+[project.optional-dependencies]
+hardware = ["lerobot[feetech]"]
+
+[project.scripts]
+embodiment-so101 = "embodiment_so101.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -16,11 +16,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install package
-        run: python -m pip install -e .
-      - name: Test
+      - name: Install all three distributions
+        run: |
+          python -m pip install -e .
+          python -m pip install -e adapters/so101
+          python -m pip install -e adapters/berkeley-humanoid-lite
+      - name: Test gateway core
         run: python -m unittest discover -s tests -p 'test_*.py' -v
-      - name: Build distributions
+      - name: Test SO-101 adapter
+        run: python -m unittest discover -s adapters/so101/tests -p 'test_*.py' -v
+      - name: Test humanoid simulation adapter
+        run: >-
+          python -m unittest discover
+          -s adapters/berkeley-humanoid-lite/tests -p 'test_*.py' -v
+      - name: Build all three distributions
         run: |
           python -m pip install --upgrade build
-          python -m build
+          python -m build --outdir dist/gateway .
+          python -m build --outdir dist/so101 adapters/so101
+          python -m build --outdir dist/humanoid adapters/berkeley-humanoid-lite
